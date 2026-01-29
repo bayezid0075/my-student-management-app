@@ -101,6 +101,13 @@ export const studentsAPI = {
   update: (id: number, data: any) => api.put(`/students/${id}/`, data),
   delete: (id: number) => api.delete(`/students/${id}/`),
   enroll: (id: number, data: any) => api.post(`/students/${id}/enroll/`, data),
+  // File upload methods
+  createWithFiles: (data: FormData) => api.post('/students/', data, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  updateWithFiles: (id: number, data: FormData) => api.patch(`/students/${id}/`, data, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
 };
 
 // Invoices API

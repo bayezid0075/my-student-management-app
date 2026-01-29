@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { studentsAPI, coursesAPI, batchesAPI, authAPI } from '@/lib/api';
+import { studentsAPI, coursesAPI, batchesAPI } from '@/lib/api';
 
 interface Student {
   id: number;
@@ -11,7 +11,84 @@ interface Student {
   phone: string;
   enrollment_date: string;
   enrollments?: any[];
+  // Personal Details
+  photo_url?: string;
+  date_of_birth?: string;
+  gender?: string;
+  nid_number?: string;
+  birth_certificate_number?: string;
+  nid_document_url?: string;
+  birth_certificate_document_url?: string;
+  // Address
+  present_address?: string;
+  permanent_address?: string;
+  // Educational Info
+  educational_qualification?: string;
+  institution_name?: string;
+  // Family Info
+  father_name?: string;
+  father_nid_number?: string;
+  father_phone?: string;
+  mother_name?: string;
+  mother_nid_number?: string;
+  mother_phone?: string;
+  // Guardian Info
+  guardian_name?: string;
+  guardian_relation?: string;
+  guardian_phone?: string;
+  guardian_nid_number?: string;
 }
+
+const initialFormData = {
+  name: '',
+  email: '',
+  phone: '',
+  enrollment_date: new Date().toISOString().split('T')[0],
+  password: '',
+  // Personal Details
+  date_of_birth: '',
+  gender: '',
+  nid_number: '',
+  birth_certificate_number: '',
+  // Address
+  present_address: '',
+  permanent_address: '',
+  // Educational Info
+  educational_qualification: '',
+  institution_name: '',
+  // Family Info
+  father_name: '',
+  father_nid_number: '',
+  father_phone: '',
+  mother_name: '',
+  mother_nid_number: '',
+  mother_phone: '',
+  // Guardian Info
+  guardian_name: '',
+  guardian_relation: '',
+  guardian_phone: '',
+  guardian_nid_number: '',
+};
+
+const EDUCATION_OPTIONS = [
+  { value: '', label: 'Select Qualification' },
+  { value: 'PSC', label: 'Primary School Certificate (PSC)' },
+  { value: 'JSC', label: 'Junior School Certificate (JSC)' },
+  { value: 'SSC', label: 'Secondary School Certificate (SSC)' },
+  { value: 'HSC', label: 'Higher Secondary Certificate (HSC)' },
+  { value: 'DIPLOMA', label: 'Diploma' },
+  { value: 'BACHELORS', label: "Bachelor's Degree" },
+  { value: 'MASTERS', label: "Master's Degree" },
+  { value: 'PHD', label: 'PhD' },
+  { value: 'OTHER', label: 'Other' },
+];
+
+const GENDER_OPTIONS = [
+  { value: '', label: 'Select Gender' },
+  { value: 'M', label: 'Male' },
+  { value: 'F', label: 'Female' },
+  { value: 'O', label: 'Other' },
+];
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
@@ -20,21 +97,20 @@ export default function StudentsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showEnrollModal, setShowEnrollModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [viewingStudent, setViewingStudent] = useState<Student | null>(null);
   const [enrollingStudent, setEnrollingStudent] = useState<Student | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    enrollment_date: new Date().toISOString().split('T')[0],
-    password: '',
-  });
-  const [enrollData, setEnrollData] = useState({
-    course: '',
-    batch: '',
-  });
+  const [formData, setFormData] = useState(initialFormData);
+  const [files, setFiles] = useState<{
+    photo?: File;
+    nid_document?: File;
+    birth_certificate_document?: File;
+  }>({});
+  const [enrollData, setEnrollData] = useState({ course: '', batch: '' });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [activeTab, setActiveTab] = useState('basic');
 
   useEffect(() => {
     fetchData();
@@ -64,11 +140,26 @@ export default function StudentsPage() {
     setSuccess('');
 
     try {
+      // Create FormData for file uploads
+      const data = new FormData();
+
+      // Add all text fields
+      Object.entries(formData).forEach(([key, value]) => {
+        if (value !== '' && value !== null && value !== undefined) {
+          data.append(key, value);
+        }
+      });
+
+      // Add files
+      if (files.photo) data.append('photo', files.photo);
+      if (files.nid_document) data.append('nid_document', files.nid_document);
+      if (files.birth_certificate_document) data.append('birth_certificate_document', files.birth_certificate_document);
+
       if (editingStudent) {
-        await studentsAPI.update(editingStudent.id, formData);
+        await studentsAPI.updateWithFiles(editingStudent.id, data);
         setSuccess('Student updated successfully!');
       } else {
-        await studentsAPI.create(formData);
+        await studentsAPI.createWithFiles(data);
         setSuccess('Student created successfully!');
       }
       fetchData();
@@ -86,7 +177,6 @@ export default function StudentsPage() {
     setSuccess('');
 
     try {
-      // Convert field names to match backend expectations
       const enrollmentData = {
         course_id: parseInt(enrollData.course),
         batch_id: enrollData.batch ? parseInt(enrollData.batch) : null,
@@ -115,13 +205,38 @@ export default function StudentsPage() {
   const handleEdit = (student: Student) => {
     setEditingStudent(student);
     setFormData({
-      name: student.name,
-      email: student.email,
-      phone: student.phone,
-      enrollment_date: student.enrollment_date,
+      name: student.name || '',
+      email: student.email || '',
+      phone: student.phone || '',
+      enrollment_date: student.enrollment_date || '',
       password: '',
+      date_of_birth: student.date_of_birth || '',
+      gender: student.gender || '',
+      nid_number: student.nid_number || '',
+      birth_certificate_number: student.birth_certificate_number || '',
+      present_address: student.present_address || '',
+      permanent_address: student.permanent_address || '',
+      educational_qualification: student.educational_qualification || '',
+      institution_name: student.institution_name || '',
+      father_name: student.father_name || '',
+      father_nid_number: student.father_nid_number || '',
+      father_phone: student.father_phone || '',
+      mother_name: student.mother_name || '',
+      mother_nid_number: student.mother_nid_number || '',
+      mother_phone: student.mother_phone || '',
+      guardian_name: student.guardian_name || '',
+      guardian_relation: student.guardian_relation || '',
+      guardian_phone: student.guardian_phone || '',
+      guardian_nid_number: student.guardian_nid_number || '',
     });
+    setFiles({});
+    setActiveTab('basic');
     setShowModal(true);
+  };
+
+  const handleViewDetails = (student: Student) => {
+    setViewingStudent(student);
+    setShowDetailsModal(true);
   };
 
   const openEnrollModal = (student: Student) => {
@@ -133,13 +248,9 @@ export default function StudentsPage() {
   const handleCloseModal = () => {
     setShowModal(false);
     setEditingStudent(null);
-    setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      enrollment_date: new Date().toISOString().split('T')[0],
-      password: '',
-    });
+    setFormData(initialFormData);
+    setFiles({});
+    setActiveTab('basic');
     setError('');
   };
 
@@ -149,6 +260,14 @@ export default function StudentsPage() {
     setEnrollData({ course: '', batch: '' });
     setError('');
   };
+
+  const tabs = [
+    { id: 'basic', label: 'Basic Info', icon: '👤' },
+    { id: 'personal', label: 'Personal', icon: '📋' },
+    { id: 'education', label: 'Education', icon: '🎓' },
+    { id: 'family', label: 'Family', icon: '👨‍👩‍👧' },
+    { id: 'guardian', label: 'Guardian', icon: '🛡️' },
+  ];
 
   if (loading) {
     return (
@@ -165,11 +284,13 @@ export default function StudentsPage() {
     <div>
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-4xl font-bold text-gray-800 retro-font mb-2">Students</h1>
-          <p className="text-gray-600">Manage student records</p>
+          <h1 className="text-5xl font-bold bg-gradient-to-r from-retro-lavender to-retro-mint bg-clip-text text-transparent retro-font mb-2">
+            Students
+          </h1>
+          <p className="text-gray-700 font-semibold text-lg">Manage student records</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="retro-btn-primary">
-          + Add Student
+        <button onClick={() => setShowModal(true)} className="retro-btn-primary text-lg">
+          ✨ Add Student
         </button>
       </div>
 
@@ -189,11 +310,11 @@ export default function StudentsPage() {
         <table className="retro-table">
           <thead>
             <tr>
+              <th>Photo</th>
               <th>Name</th>
               <th>Email</th>
               <th>Phone</th>
               <th>Enrollment Date</th>
-              <th>Enrollments</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -207,30 +328,50 @@ export default function StudentsPage() {
             ) : (
               students.map((student) => (
                 <tr key={student.id}>
+                  <td>
+                    {student.photo_url ? (
+                      <img
+                        src={student.photo_url}
+                        alt={student.name}
+                        className="w-12 h-12 rounded-full object-cover border-2 border-retro-lavender"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-retro-lavender to-retro-pink flex items-center justify-center text-white font-bold text-lg">
+                        {student.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </td>
                   <td className="font-semibold">{student.name}</td>
                   <td>{student.email}</td>
                   <td>{student.phone}</td>
                   <td>{new Date(student.enrollment_date).toLocaleDateString()}</td>
-                  <td>{student.enrollments?.length || 0} courses</td>
                   <td>
-                    <button
-                      onClick={() => openEnrollModal(student)}
-                      className="mr-2 px-3 py-1 bg-retro-mint text-white rounded hover:opacity-90 text-sm"
-                    >
-                      Enroll
-                    </button>
-                    <button
-                      onClick={() => handleEdit(student)}
-                      className="mr-2 px-3 py-1 bg-retro-blue text-white rounded hover:opacity-90"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(student.id)}
-                      className="px-3 py-1 bg-red-500 text-white rounded hover:opacity-90"
-                    >
-                      Delete
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => handleViewDetails(student)}
+                        className="px-3 py-1 bg-retro-blue text-white rounded hover:opacity-90 text-sm"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => openEnrollModal(student)}
+                        className="px-3 py-1 bg-retro-mint text-white rounded hover:opacity-90 text-sm"
+                      >
+                        Enroll
+                      </button>
+                      <button
+                        onClick={() => handleEdit(student)}
+                        className="px-3 py-1 bg-retro-peach text-white rounded hover:opacity-90 text-sm"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(student.id)}
+                        className="px-3 py-1 bg-red-500 text-white rounded hover:opacity-90 text-sm"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -242,10 +383,27 @@ export default function StudentsPage() {
       {/* Create/Edit Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="retro-card max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-2xl font-bold text-retro-lavender mb-6">
+          <div className="retro-card max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <h2 className="text-2xl font-bold text-retro-lavender mb-4">
               {editingStudent ? 'Edit Student' : 'Create New Student'}
             </h2>
+
+            {/* Tabs */}
+            <div className="flex flex-wrap gap-2 mb-4 border-b-2 border-gray-200 pb-4">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-4 py-2 rounded-retro font-semibold transition-all ${
+                    activeTab === tab.id
+                      ? 'bg-gradient-to-r from-retro-lavender to-retro-lavender-light text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {tab.icon} {tab.label}
+                </button>
+              ))}
+            </div>
 
             {error && (
               <div className="mb-4 p-4 bg-red-100 border-2 border-red-300 rounded-retro text-red-700 text-sm">
@@ -253,76 +411,313 @@ export default function StudentsPage() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name *
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="retro-input"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="retro-input"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone *
-                </label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="retro-input"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Enrollment Date *
-                </label>
-                <input
-                  type="date"
-                  value={formData.enrollment_date}
-                  onChange={(e) => setFormData({ ...formData, enrollment_date: e.target.value })}
-                  className="retro-input"
-                  required
-                />
-              </div>
-
-              {!editingStudent && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Password *
-                  </label>
-                  <input
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="retro-input"
-                    required={!editingStudent}
-                    placeholder="Minimum 8 characters"
-                  />
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+              {/* Basic Info Tab */}
+              {activeTab === 'basic' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        className="retro-input"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                      <input
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        className="retro-input"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Phone *</label>
+                      <input
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        className="retro-input"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Enrollment Date *</label>
+                      <input
+                        type="date"
+                        value={formData.enrollment_date}
+                        onChange={(e) => setFormData({ ...formData, enrollment_date: e.target.value })}
+                        className="retro-input"
+                        required
+                      />
+                    </div>
+                    {!editingStudent && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Password *</label>
+                        <input
+                          type="password"
+                          value={formData.password}
+                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                          className="retro-input"
+                          required={!editingStudent}
+                          placeholder="Minimum 8 characters"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Photo</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setFiles({ ...files, photo: e.target.files?.[0] })}
+                        className="retro-input"
+                      />
+                      {editingStudent?.photo_url && (
+                        <p className="text-xs text-gray-500 mt-1">Current photo exists. Upload new to replace.</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
-              <div className="flex space-x-4 pt-4">
+              {/* Personal Tab */}
+              {activeTab === 'personal' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
+                      <input
+                        type="date"
+                        value={formData.date_of_birth}
+                        onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                        className="retro-input"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+                      <select
+                        value={formData.gender}
+                        onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                        className="retro-input"
+                      >
+                        {GENDER_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">NID Number</label>
+                      <input
+                        type="text"
+                        value={formData.nid_number}
+                        onChange={(e) => setFormData({ ...formData, nid_number: e.target.value })}
+                        className="retro-input"
+                        placeholder="National ID Number"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Birth Certificate Number</label>
+                      <input
+                        type="text"
+                        value={formData.birth_certificate_number}
+                        onChange={(e) => setFormData({ ...formData, birth_certificate_number: e.target.value })}
+                        className="retro-input"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">NID Document</label>
+                      <input
+                        type="file"
+                        accept="image/*,.pdf"
+                        onChange={(e) => setFiles({ ...files, nid_document: e.target.files?.[0] })}
+                        className="retro-input"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Birth Certificate Document</label>
+                      <input
+                        type="file"
+                        accept="image/*,.pdf"
+                        onChange={(e) => setFiles({ ...files, birth_certificate_document: e.target.files?.[0] })}
+                        className="retro-input"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Present Address</label>
+                    <textarea
+                      value={formData.present_address}
+                      onChange={(e) => setFormData({ ...formData, present_address: e.target.value })}
+                      className="retro-input"
+                      rows={2}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Permanent Address</label>
+                    <textarea
+                      value={formData.permanent_address}
+                      onChange={(e) => setFormData({ ...formData, permanent_address: e.target.value })}
+                      className="retro-input"
+                      rows={2}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Education Tab */}
+              {activeTab === 'education' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Educational Qualification</label>
+                      <select
+                        value={formData.educational_qualification}
+                        onChange={(e) => setFormData({ ...formData, educational_qualification: e.target.value })}
+                        className="retro-input"
+                      >
+                        {EDUCATION_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Institution Name</label>
+                      <input
+                        type="text"
+                        value={formData.institution_name}
+                        onChange={(e) => setFormData({ ...formData, institution_name: e.target.value })}
+                        className="retro-input"
+                        placeholder="Last attended institution"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Family Tab */}
+              {activeTab === 'family' && (
+                <div className="space-y-6">
+                  <div className="bg-retro-pink/10 p-4 rounded-retro">
+                    <h3 className="text-lg font-bold text-retro-pink mb-4">Father&apos;s Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Father&apos;s Name</label>
+                        <input
+                          type="text"
+                          value={formData.father_name}
+                          onChange={(e) => setFormData({ ...formData, father_name: e.target.value })}
+                          className="retro-input"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Father&apos;s NID</label>
+                        <input
+                          type="text"
+                          value={formData.father_nid_number}
+                          onChange={(e) => setFormData({ ...formData, father_nid_number: e.target.value })}
+                          className="retro-input"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Father&apos;s Phone</label>
+                        <input
+                          type="tel"
+                          value={formData.father_phone}
+                          onChange={(e) => setFormData({ ...formData, father_phone: e.target.value })}
+                          className="retro-input"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-retro-mint/10 p-4 rounded-retro">
+                    <h3 className="text-lg font-bold text-retro-mint mb-4">Mother&apos;s Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Mother&apos;s Name</label>
+                        <input
+                          type="text"
+                          value={formData.mother_name}
+                          onChange={(e) => setFormData({ ...formData, mother_name: e.target.value })}
+                          className="retro-input"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Mother&apos;s NID</label>
+                        <input
+                          type="text"
+                          value={formData.mother_nid_number}
+                          onChange={(e) => setFormData({ ...formData, mother_nid_number: e.target.value })}
+                          className="retro-input"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Mother&apos;s Phone</label>
+                        <input
+                          type="tel"
+                          value={formData.mother_phone}
+                          onChange={(e) => setFormData({ ...formData, mother_phone: e.target.value })}
+                          className="retro-input"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Guardian Tab */}
+              {activeTab === 'guardian' && (
+                <div className="space-y-4">
+                  <div className="bg-retro-lavender/10 p-4 rounded-retro">
+                    <h3 className="text-lg font-bold text-retro-lavender mb-4">Guardian Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Guardian Name</label>
+                        <input
+                          type="text"
+                          value={formData.guardian_name}
+                          onChange={(e) => setFormData({ ...formData, guardian_name: e.target.value })}
+                          className="retro-input"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Relation with Student</label>
+                        <input
+                          type="text"
+                          value={formData.guardian_relation}
+                          onChange={(e) => setFormData({ ...formData, guardian_relation: e.target.value })}
+                          className="retro-input"
+                          placeholder="e.g., Uncle, Aunt, Brother"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Guardian Phone</label>
+                        <input
+                          type="tel"
+                          value={formData.guardian_phone}
+                          onChange={(e) => setFormData({ ...formData, guardian_phone: e.target.value })}
+                          className="retro-input"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Guardian NID</label>
+                        <input
+                          type="text"
+                          value={formData.guardian_nid_number}
+                          onChange={(e) => setFormData({ ...formData, guardian_nid_number: e.target.value })}
+                          className="retro-input"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex space-x-4 pt-6 mt-4 border-t-2 border-gray-200">
                 <button type="submit" className="flex-1 retro-btn-primary">
                   {editingStudent ? 'Update Student' : 'Create Student'}
                 </button>
@@ -335,6 +730,105 @@ export default function StudentsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* View Details Modal */}
+      {showDetailsModal && viewingStudent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="retro-card max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start mb-6">
+              <h2 className="text-2xl font-bold text-retro-lavender">Student Details</h2>
+              <button
+                onClick={() => setShowDetailsModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Profile Section */}
+              <div className="md:col-span-1 text-center">
+                {viewingStudent.photo_url ? (
+                  <img
+                    src={viewingStudent.photo_url}
+                    alt={viewingStudent.name}
+                    className="w-32 h-32 rounded-full object-cover mx-auto border-4 border-retro-lavender"
+                  />
+                ) : (
+                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-retro-lavender to-retro-pink flex items-center justify-center text-white font-bold text-4xl mx-auto">
+                    {viewingStudent.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <h3 className="text-xl font-bold mt-4">{viewingStudent.name}</h3>
+                <p className="text-gray-600">{viewingStudent.email}</p>
+                <p className="text-gray-600">{viewingStudent.phone}</p>
+              </div>
+
+              {/* Details Section */}
+              <div className="md:col-span-2 space-y-6">
+                {/* Personal Info */}
+                <div className="bg-gray-50 p-4 rounded-retro">
+                  <h4 className="font-bold text-retro-lavender mb-3">Personal Information</h4>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <p><span className="font-semibold">Date of Birth:</span> {viewingStudent.date_of_birth || 'N/A'}</p>
+                    <p><span className="font-semibold">Gender:</span> {viewingStudent.gender === 'M' ? 'Male' : viewingStudent.gender === 'F' ? 'Female' : viewingStudent.gender === 'O' ? 'Other' : 'N/A'}</p>
+                    <p><span className="font-semibold">NID:</span> {viewingStudent.nid_number || 'N/A'}</p>
+                    <p><span className="font-semibold">Birth Cert:</span> {viewingStudent.birth_certificate_number || 'N/A'}</p>
+                  </div>
+                </div>
+
+                {/* Education */}
+                <div className="bg-gray-50 p-4 rounded-retro">
+                  <h4 className="font-bold text-retro-mint mb-3">Education</h4>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <p><span className="font-semibold">Qualification:</span> {viewingStudent.educational_qualification || 'N/A'}</p>
+                    <p><span className="font-semibold">Institution:</span> {viewingStudent.institution_name || 'N/A'}</p>
+                  </div>
+                </div>
+
+                {/* Family */}
+                <div className="bg-gray-50 p-4 rounded-retro">
+                  <h4 className="font-bold text-retro-pink mb-3">Family Information</h4>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <p><span className="font-semibold">Father:</span> {viewingStudent.father_name || 'N/A'}</p>
+                    <p><span className="font-semibold">Father Phone:</span> {viewingStudent.father_phone || 'N/A'}</p>
+                    <p><span className="font-semibold">Mother:</span> {viewingStudent.mother_name || 'N/A'}</p>
+                    <p><span className="font-semibold">Mother Phone:</span> {viewingStudent.mother_phone || 'N/A'}</p>
+                  </div>
+                </div>
+
+                {/* Guardian */}
+                <div className="bg-gray-50 p-4 rounded-retro">
+                  <h4 className="font-bold text-retro-blue mb-3">Guardian Information</h4>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <p><span className="font-semibold">Name:</span> {viewingStudent.guardian_name || 'N/A'}</p>
+                    <p><span className="font-semibold">Relation:</span> {viewingStudent.guardian_relation || 'N/A'}</p>
+                    <p><span className="font-semibold">Phone:</span> {viewingStudent.guardian_phone || 'N/A'}</p>
+                  </div>
+                </div>
+
+                {/* Address */}
+                <div className="bg-gray-50 p-4 rounded-retro">
+                  <h4 className="font-bold text-retro-peach mb-3">Address</h4>
+                  <div className="text-sm space-y-2">
+                    <p><span className="font-semibold">Present:</span> {viewingStudent.present_address || 'N/A'}</p>
+                    <p><span className="font-semibold">Permanent:</span> {viewingStudent.permanent_address || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-4 border-t-2 border-gray-200">
+              <button
+                onClick={() => setShowDetailsModal(false)}
+                className="w-full retro-btn-secondary"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -355,9 +849,7 @@ export default function StudentsPage() {
 
             <form onSubmit={handleEnroll} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Course *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Course *</label>
                 <select
                   value={enrollData.course}
                   onChange={(e) => setEnrollData({ ...enrollData, course: e.target.value })}
@@ -374,9 +866,7 @@ export default function StudentsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Batch (Optional)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Batch (Optional)</label>
                 <select
                   value={enrollData.batch}
                   onChange={(e) => setEnrollData({ ...enrollData, batch: e.target.value })}

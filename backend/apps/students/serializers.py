@@ -34,12 +34,62 @@ class StudentSerializer(serializers.ModelSerializer):
     """
     enrollments = StudentCourseSerializer(many=True, read_only=True)
     password = serializers.CharField(write_only=True, required=False)
+    photo_url = serializers.SerializerMethodField()
+    nid_document_url = serializers.SerializerMethodField()
+    birth_certificate_document_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Student
-        fields = ['id', 'user', 'name', 'email', 'phone', 'enrollment_date',
-                  'enrollments', 'password', 'created_at', 'updated_at']
+        fields = [
+            'id', 'user', 'name', 'email', 'phone', 'enrollment_date',
+            # Personal Details
+            'photo', 'photo_url', 'date_of_birth', 'gender',
+            'nid_number', 'birth_certificate_number',
+            # Documents
+            'nid_document', 'nid_document_url',
+            'birth_certificate_document', 'birth_certificate_document_url',
+            # Address
+            'present_address', 'permanent_address',
+            # Educational Info
+            'educational_qualification', 'institution_name',
+            # Family Information
+            'father_name', 'father_nid_number', 'father_phone',
+            'mother_name', 'mother_nid_number', 'mother_phone',
+            # Guardian Information
+            'guardian_name', 'guardian_relation', 'guardian_phone', 'guardian_nid_number',
+            # Other
+            'enrollments', 'password', 'created_at', 'updated_at'
+        ]
         read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'photo': {'write_only': True, 'required': False},
+            'nid_document': {'write_only': True, 'required': False},
+            'birth_certificate_document': {'write_only': True, 'required': False},
+        }
+
+    def get_photo_url(self, obj):
+        if obj.photo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.photo.url)
+            return obj.photo.url
+        return None
+
+    def get_nid_document_url(self, obj):
+        if obj.nid_document:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.nid_document.url)
+            return obj.nid_document.url
+        return None
+
+    def get_birth_certificate_document_url(self, obj):
+        if obj.birth_certificate_document:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.birth_certificate_document.url)
+            return obj.birth_certificate_document.url
+        return None
 
     def create(self, validated_data):
         # Create user account for student
@@ -68,6 +118,7 @@ class StudentSerializer(serializers.ModelSerializer):
         # Update user email if changed
         if validated_data.get('email') and validated_data['email'] != instance.email:
             instance.user.email = validated_data['email']
+            instance.user.username = validated_data['email']
             instance.user.save()
 
         return super().update(instance, validated_data)
