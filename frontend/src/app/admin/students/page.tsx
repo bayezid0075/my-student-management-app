@@ -116,6 +116,7 @@ export default function StudentsPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [activeTab, setActiveTab] = useState('basic');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -311,27 +312,73 @@ export default function StudentsPage() {
         </div>
       )}
 
+      {/* Search Bar */}
+      <div className="mb-6">
+        <div className="relative max-w-md">
+          <input
+            type="text"
+            placeholder="Search by name or phone number..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="retro-input pl-12 w-full"
+          />
+          <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+        {searchQuery && (
+          <p className="text-sm text-gray-500 mt-2">
+            Found {students.filter(s =>
+              s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              s.phone.includes(searchQuery)
+            ).length} student(s) matching &quot;{searchQuery}&quot;
+          </p>
+        )}
+      </div>
+
       <div className="retro-card overflow-x-auto">
         <table className="retro-table">
           <thead>
             <tr>
               <th>Photo</th>
               <th>Name</th>
-              <th>Email</th>
               <th>Phone</th>
+              <th>Course</th>
+              <th>Batch</th>
               <th>Payment Status</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {students.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="text-center py-8 text-gray-500">
-                  No students found. Add your first student!
-                </td>
-              </tr>
-            ) : (
-              students.map((student) => (
+            {(() => {
+              const filteredStudents = students.filter(s =>
+                s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                s.phone.includes(searchQuery)
+              );
+
+              if (filteredStudents.length === 0) {
+                return (
+                  <tr>
+                    <td colSpan={7} className="text-center py-8 text-gray-500">
+                      {searchQuery ? `No students found matching "${searchQuery}"` : 'No students found. Add your first student!'}
+                    </td>
+                  </tr>
+                );
+              }
+
+              return filteredStudents.map((student) => (
                 <tr key={student.id}>
                   <td>
                     {student.photo_url ? (
@@ -347,8 +394,43 @@ export default function StudentsPage() {
                     )}
                   </td>
                   <td className="font-semibold">{student.name}</td>
-                  <td>{student.email}</td>
                   <td>{student.phone}</td>
+                  <td>
+                    {student.enrollments && student.enrollments.length > 0 ? (
+                      <div className="space-y-1">
+                        {student.enrollments.map((enrollment: any, idx: number) => (
+                          <span
+                            key={idx}
+                            className="inline-block px-2 py-1 bg-gradient-to-r from-retro-lavender to-retro-lavender-light text-white rounded text-xs font-semibold mr-1"
+                          >
+                            {enrollment.course_details?.name || 'Course'}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-sm">No course</span>
+                    )}
+                  </td>
+                  <td>
+                    {student.enrollments && student.enrollments.length > 0 ? (
+                      <div className="space-y-1">
+                        {student.enrollments.map((enrollment: any, idx: number) => (
+                          enrollment.batch_details ? (
+                            <span
+                              key={idx}
+                              className="inline-block px-2 py-1 bg-gradient-to-r from-retro-blue to-retro-blue-light text-white rounded text-xs font-semibold mr-1 shadow-sm"
+                            >
+                              {enrollment.batch_details?.name || 'Batch'}
+                            </span>
+                          ) : (
+                            <span key={idx} className="text-gray-400 text-xs block">No batch</span>
+                          )
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-sm">-</span>
+                    )}
+                  </td>
                   <td>
                     {student.payment_status === 'FULL_PAID' ? (
                       <span className="px-3 py-1 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-full text-sm font-bold shadow-sm">
@@ -404,8 +486,8 @@ export default function StudentsPage() {
                     </div>
                   </td>
                 </tr>
-              ))
-            )}
+              ));
+            })()}
           </tbody>
         </table>
       </div>
