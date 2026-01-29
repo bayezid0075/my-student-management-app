@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=VT323&family=Poppins:wght@400;500;600;700&display=swap');
+
+@layer base {
+  body {
+    @apply bg-gradient-to-br from-retro-cream via-white to-retro-blue-light/10 text-retro-dark;
+    font-family: 'Poppins', 'Helvetica', 'Arial', sans-serif;
+  }
+
+  .retro-font {
+    font-family: 'VT323', monospace;
+    letter-spacing: 1px;
+  }
+}
+
+@layer components {
+  .retro-card {
+    @apply bg-white rounded-retro shadow-retro-lg p-6 border-4 border-gray-100 hover:shadow-retro-xl transition-all duration-300;
+  }
+
+  .retro-btn {
+    @apply px-6 py-3 rounded-retro font-semibold transition-all duration-200 shadow-retro hover:shadow-retro-lg hover:scale-105 active:scale-95;
+  }
+
+  .retro-btn-primary {
+    @apply retro-btn bg-gradient-to-r from-retro-pink to-retro-pink-light text-white hover:from-retro-pink-light hover:to-retro-pink;
+  }
+
+  .retro-btn-secondary {
+    @apply retro-btn bg-gradient-to-r from-retro-lavender to-retro-lavender-light text-white hover:from-retro-lavender-light hover:to-retro-lavender;
+  }
+
+  .retro-btn-success {
+    @apply retro-btn bg-gradient-to-r from-retro-mint to-retro-mint-light text-white hover:from-retro-mint-light hover:to-retro-mint;
+  }
+
+  .retro-input {
+    @apply w-full px-4 py-3 rounded-retro border-2 border-gray-300 focus:border-retro-lavender focus:ring-4 focus:ring-retro-lavender/20 focus:outline-none transition-all duration-200;
+  }
+
+  .retro-table {
+    @apply w-full border-collapse rounded-retro overflow-hidden shadow-retro-lg;
+  }
+
+  .retro-table th {
+    @apply bg-gradient-to-r from-retro-lavender to-retro-lavender-light text-white px-4 py-4 text-left font-bold uppercase text-sm tracking-wider;
+  }
+
+  .retro-table td {
+    @apply px-4 py-4 border-b-2 border-gray-100;
+  }
+
+  .retro-table tr:hover {
+    @apply bg-gradient-to-r from-retro-blue-light/10 to-retro-mint-light/10;
+  }
+
+  .rounded-retro {
+    border-radius: 12px;
+  }
+}
