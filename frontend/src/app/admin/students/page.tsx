@@ -37,6 +37,11 @@ interface Student {
   guardian_relation?: string;
   guardian_phone?: string;
   guardian_nid_number?: string;
+  // Payment Info
+  total_fees?: number;
+  total_paid?: number;
+  due_amount?: number;
+  payment_status?: 'FULL_PAID' | 'PARTIAL' | 'UNPAID' | 'NO_COURSE';
 }
 
 const initialFormData = {
@@ -314,14 +319,14 @@ export default function StudentsPage() {
               <th>Name</th>
               <th>Email</th>
               <th>Phone</th>
-              <th>Enrollment Date</th>
+              <th>Payment Status</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {students.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-8 text-gray-500">
+                <td colSpan={7} className="text-center py-8 text-gray-500">
                   No students found. Add your first student!
                 </td>
               </tr>
@@ -344,7 +349,32 @@ export default function StudentsPage() {
                   <td className="font-semibold">{student.name}</td>
                   <td>{student.email}</td>
                   <td>{student.phone}</td>
-                  <td>{new Date(student.enrollment_date).toLocaleDateString()}</td>
+                  <td>
+                    {student.payment_status === 'FULL_PAID' ? (
+                      <span className="px-3 py-1 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-full text-sm font-bold shadow-sm">
+                        ✓ Full Paid
+                      </span>
+                    ) : student.payment_status === 'PARTIAL' ? (
+                      <div className="text-center">
+                        <span className="px-3 py-1 bg-gradient-to-r from-retro-peach to-retro-peach-light text-white rounded-full text-sm font-bold shadow-sm block">
+                          Due: ৳{student.due_amount?.toLocaleString()}
+                        </span>
+                        <span className="text-xs text-gray-500 mt-1 block">
+                          Paid: ৳{student.total_paid?.toLocaleString()}
+                        </span>
+                      </div>
+                    ) : student.payment_status === 'UNPAID' ? (
+                      <div className="text-center">
+                        <span className="px-3 py-1 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-full text-sm font-bold shadow-sm block">
+                          Unpaid: ৳{student.total_fees?.toLocaleString()}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="px-3 py-1 bg-gray-400 text-white rounded-full text-sm font-bold shadow-sm">
+                        No Course
+                      </span>
+                    )}
+                  </td>
                   <td>
                     <div className="flex flex-wrap gap-2">
                       <button
@@ -816,6 +846,47 @@ export default function StudentsPage() {
                   <div className="text-sm space-y-2">
                     <p><span className="font-semibold">Present:</span> {viewingStudent.present_address || 'N/A'}</p>
                     <p><span className="font-semibold">Permanent:</span> {viewingStudent.permanent_address || 'N/A'}</p>
+                  </div>
+                </div>
+
+                {/* Payment Information */}
+                <div className={`p-4 rounded-retro ${
+                  viewingStudent.payment_status === 'FULL_PAID'
+                    ? 'bg-green-50 border-2 border-green-200'
+                    : viewingStudent.payment_status === 'PARTIAL'
+                    ? 'bg-orange-50 border-2 border-orange-200'
+                    : viewingStudent.payment_status === 'UNPAID'
+                    ? 'bg-red-50 border-2 border-red-200'
+                    : 'bg-gray-50'
+                }`}>
+                  <h4 className="font-bold text-retro-dark mb-3">💰 Payment Information</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="bg-white p-3 rounded-lg shadow-sm">
+                      <p className="text-gray-500 text-xs uppercase">Total Fees</p>
+                      <p className="text-xl font-bold text-retro-lavender">৳{viewingStudent.total_fees?.toLocaleString() || '0'}</p>
+                    </div>
+                    <div className="bg-white p-3 rounded-lg shadow-sm">
+                      <p className="text-gray-500 text-xs uppercase">Total Paid</p>
+                      <p className="text-xl font-bold text-green-600">৳{viewingStudent.total_paid?.toLocaleString() || '0'}</p>
+                    </div>
+                    <div className="bg-white p-3 rounded-lg shadow-sm">
+                      <p className="text-gray-500 text-xs uppercase">Due Amount</p>
+                      <p className={`text-xl font-bold ${viewingStudent.due_amount && viewingStudent.due_amount > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        ৳{viewingStudent.due_amount?.toLocaleString() || '0'}
+                      </p>
+                    </div>
+                    <div className="bg-white p-3 rounded-lg shadow-sm">
+                      <p className="text-gray-500 text-xs uppercase">Status</p>
+                      <p className={`text-xl font-bold ${
+                        viewingStudent.payment_status === 'FULL_PAID' ? 'text-green-600' :
+                        viewingStudent.payment_status === 'PARTIAL' ? 'text-orange-600' :
+                        viewingStudent.payment_status === 'UNPAID' ? 'text-red-600' : 'text-gray-600'
+                      }`}>
+                        {viewingStudent.payment_status === 'FULL_PAID' ? '✓ Full Paid' :
+                         viewingStudent.payment_status === 'PARTIAL' ? 'Partial' :
+                         viewingStudent.payment_status === 'UNPAID' ? 'Unpaid' : 'No Course'}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>

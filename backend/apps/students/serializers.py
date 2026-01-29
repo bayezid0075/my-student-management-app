@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
+from django.db.models import Sum
+from decimal import Decimal
 from .models import Student, StudentCourse
 from apps.courses.serializers import CourseSerializer
 from apps.batches.serializers import BatchSerializer
@@ -37,6 +39,11 @@ class StudentSerializer(serializers.ModelSerializer):
     photo_url = serializers.SerializerMethodField()
     nid_document_url = serializers.SerializerMethodField()
     birth_certificate_document_url = serializers.SerializerMethodField()
+    # Payment tracking fields
+    total_fees = serializers.SerializerMethodField()
+    total_paid = serializers.SerializerMethodField()
+    due_amount = serializers.SerializerMethodField()
+    payment_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Student
@@ -57,6 +64,8 @@ class StudentSerializer(serializers.ModelSerializer):
             'mother_name', 'mother_nid_number', 'mother_phone',
             # Guardian Information
             'guardian_name', 'guardian_relation', 'guardian_phone', 'guardian_nid_number',
+            # Payment tracking
+            'total_fees', 'total_paid', 'due_amount', 'payment_status',
             # Other
             'enrollments', 'password', 'created_at', 'updated_at'
         ]
@@ -90,6 +99,41 @@ class StudentSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.birth_certificate_document.url)
             return obj.birth_certificate_document.url
         return None
+
+    def get_total_fees(self, obj):
+        """Calculate total fees from all enrolled courses."""
+        total = obj.enrollments.aggregate(
+            total=Sum('course__fee')
+        )['total']
+        return float(total) if total else 0.0
+
+    def get_total_paid(self, obj):
+        """Calculate total paid from all invoices."""
+        total = obj.invoices.aggregate(
+            total=Sum('amount')
+        )['total']
+        return float(total) if total else 0.0
+
+    def get_due_amount(self, obj):
+        """Calculate remaining due amount."""
+        total_fees = self.get_total_fees(obj)
+        total_paid = self.get_total_paid(obj)
+        due = total_fees - total_paid
+        return max(0.0, due)  # Don't return negative due
+
+    def get_payment_status(self, obj):
+        """Return payment status: FULL_PAID, PARTIAL, or UNPAID."""
+        total_fees = self.get_total_fees(obj)
+        total_paid = self.get_total_paid(obj)
+
+        if total_fees == 0:
+            return 'NO_COURSE'
+        elif total_paid >= total_fees:
+            return 'FULL_PAID'
+        elif total_paid > 0:
+            return 'PARTIAL'
+        else:
+            return 'UNPAID'
 
     def create(self, validated_data):
         # Create user account for student
