@@ -1,19 +1,23 @@
 """
-PDF generation for invoices using ReportLab.
+Professional PDF invoice generation using ReportLab.
+A4 size with proper business layout.
 """
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+from reportlab.lib.units import inch, mm
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, HRFlowable
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+from reportlab.graphics.shapes import Drawing, Rect, String
+from reportlab.graphics.charts.textlabels import Label
 from django.conf import settings
 import os
+from datetime import datetime
 
 
 def generate_invoice_pdf(invoice):
     """
-    Generate a PDF invoice with retro styling.
+    Generate a professional A4 PDF invoice.
     """
     # Create directory if it doesn't exist
     invoice_dir = os.path.join(settings.MEDIA_ROOT, 'invoices')
@@ -23,137 +27,389 @@ def generate_invoice_pdf(invoice):
     filename = f'invoice_{invoice.invoice_number}.pdf'
     filepath = os.path.join(invoice_dir, filename)
 
-    # Create PDF
-    doc = SimpleDocTemplate(filepath, pagesize=letter)
+    # A4 size: 210mm x 297mm
+    doc = SimpleDocTemplate(
+        filepath,
+        pagesize=A4,
+        rightMargin=20*mm,
+        leftMargin=20*mm,
+        topMargin=15*mm,
+        bottomMargin=15*mm
+    )
+
     elements = []
     styles = getSampleStyleSheet()
+    width, height = A4
 
-    # Custom styles for retro look
-    title_style = ParagraphStyle(
-        'CustomTitle',
+    # ==================== CUSTOM STYLES ====================
+
+    # Company name style
+    company_style = ParagraphStyle(
+        'Company',
         parent=styles['Heading1'],
-        fontSize=24,
-        textColor=colors.HexColor('#D4C5F9'),  # Lavender
-        spaceAfter=30,
-        alignment=TA_CENTER,
-        fontName='Helvetica-Bold'
+        fontSize=28,
+        textColor=colors.HexColor('#9D4EDD'),
+        fontName='Helvetica-Bold',
+        alignment=TA_LEFT,
+        spaceAfter=2*mm,
     )
 
-    heading_style = ParagraphStyle(
-        'CustomHeading',
+    # Invoice title style
+    invoice_title_style = ParagraphStyle(
+        'InvoiceTitle',
+        parent=styles['Heading1'],
+        fontSize=36,
+        textColor=colors.HexColor('#333333'),
+        fontName='Helvetica-Bold',
+        alignment=TA_RIGHT,
+        spaceAfter=5*mm,
+    )
+
+    # Section header style
+    section_style = ParagraphStyle(
+        'Section',
         parent=styles['Heading2'],
-        fontSize=14,
-        textColor=colors.HexColor('#B4E7CE'),  # Mint green
-        spaceAfter=12,
-        fontName='Helvetica-Bold'
+        fontSize=11,
+        textColor=colors.HexColor('#666666'),
+        fontName='Helvetica-Bold',
+        spaceBefore=3*mm,
+        spaceAfter=2*mm,
     )
 
-    # Title
-    title = Paragraph("INVOICE", title_style)
-    elements.append(title)
-    elements.append(Spacer(1, 0.3 * inch))
+    # Normal text style
+    normal_style = ParagraphStyle(
+        'CustomNormal',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=colors.HexColor('#333333'),
+        fontName='Helvetica',
+        leading=14,
+    )
 
-    # Invoice details
-    invoice_info = [
-        ['Invoice Number:', invoice.invoice_number],
-        ['Payment Date:', invoice.payment_date.strftime('%B %d, %Y')],
-        ['Issue Date:', invoice.created_at.strftime('%B %d, %Y')],
-    ]
+    # Bold text style
+    bold_style = ParagraphStyle(
+        'CustomBold',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=colors.HexColor('#333333'),
+        fontName='Helvetica-Bold',
+        leading=14,
+    )
 
-    invoice_table = Table(invoice_info, colWidths=[2 * inch, 4 * inch])
-    invoice_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
-        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#666666')),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-    ]))
-    elements.append(invoice_table)
-    elements.append(Spacer(1, 0.4 * inch))
+    # Small text style
+    small_style = ParagraphStyle(
+        'Small',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=colors.HexColor('#666666'),
+        fontName='Helvetica',
+        leading=12,
+    )
 
-    # Student details section
-    student_heading = Paragraph("Bill To:", heading_style)
-    elements.append(student_heading)
+    # ==================== HEADER SECTION ====================
 
-    student_info = [
-        ['Student Name:', invoice.student.name],
-        ['Email:', invoice.student.email],
-        ['Phone:', invoice.student.phone],
-    ]
-
-    student_table = Table(student_info, colWidths=[2 * inch, 4 * inch])
-    student_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
-        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#666666')),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-    ]))
-    elements.append(student_table)
-    elements.append(Spacer(1, 0.4 * inch))
-
-    # Course details section
-    course_heading = Paragraph("Course Details:", heading_style)
-    elements.append(course_heading)
-
-    course_data = [
-        ['Description', 'Duration', 'Amount'],
+    # Create header table with company info and invoice title
+    header_data = [
         [
-            invoice.course.name,
-            f"{invoice.course.duration} months",
-            f"${invoice.amount}"
-        ],
+            Paragraph("Student Management System", company_style),
+            Paragraph("INVOICE", invoice_title_style)
+        ]
     ]
 
-    if invoice.batch:
-        course_data[1][0] += f"\nBatch: {invoice.batch.name}"
+    header_table = Table(header_data, colWidths=[90*mm, 80*mm])
+    header_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+    ]))
+    elements.append(header_table)
 
-    course_table = Table(course_data, colWidths=[3.5 * inch, 1.5 * inch, 1.5 * inch])
-    course_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#FFB3D9')),  # Soft pink
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+    # Company address
+    company_address = Paragraph(
+        "123 Education Street, Learning City, LC 12345<br/>"
+        "Phone: +1 (555) 123-4567 | Email: billing@sms.edu",
+        small_style
+    )
+    elements.append(company_address)
+
+    # Horizontal line
+    elements.append(Spacer(1, 5*mm))
+    elements.append(HRFlowable(width="100%", thickness=2, color=colors.HexColor('#9D4EDD')))
+    elements.append(Spacer(1, 5*mm))
+
+    # ==================== INVOICE INFO & BILL TO ====================
+
+    # Invoice details (right side info)
+    invoice_info_style = ParagraphStyle(
+        'InvoiceInfo',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=colors.HexColor('#333333'),
+        fontName='Helvetica',
+        alignment=TA_RIGHT,
+    )
+
+    # Left side: Bill To
+    bill_to_content = f"""
+    <b>BILL TO:</b><br/>
+    <b>{invoice.student.name}</b><br/>
+    {invoice.student.email}<br/>
+    {invoice.student.phone}<br/>
+    """
+    if hasattr(invoice.student, 'present_address') and invoice.student.present_address:
+        bill_to_content += f"{invoice.student.present_address}<br/>"
+
+    bill_to = Paragraph(bill_to_content, normal_style)
+
+    # Right side: Invoice details
+    invoice_details_content = f"""
+    <b>Invoice Number:</b> {invoice.invoice_number}<br/>
+    <b>Invoice Date:</b> {invoice.created_at.strftime('%B %d, %Y')}<br/>
+    <b>Payment Date:</b> {invoice.payment_date.strftime('%B %d, %Y')}<br/>
+    <b>Due Date:</b> {invoice.payment_date.strftime('%B %d, %Y')}<br/>
+    """
+    invoice_details = Paragraph(invoice_details_content, invoice_info_style)
+
+    # Create two-column layout
+    info_table = Table(
+        [[bill_to, invoice_details]],
+        colWidths=[90*mm, 80*mm]
+    )
+    info_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+        ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+    ]))
+    elements.append(info_table)
+    elements.append(Spacer(1, 8*mm))
+
+    # ==================== ITEMS TABLE ====================
+
+    # Table header
+    items_header = ['#', 'Description', 'Duration', 'Rate', 'Amount']
+
+    # Course description
+    course_desc = invoice.course.name
+    if invoice.batch:
+        course_desc += f"\nBatch: {invoice.batch.name}"
+    if invoice.course.description:
+        # Truncate description if too long
+        desc = invoice.course.description[:100]
+        if len(invoice.course.description) > 100:
+            desc += "..."
+        course_desc += f"\n{desc}"
+
+    items_data = [
+        items_header,
+        [
+            '1',
+            course_desc,
+            f"{invoice.course.duration} months",
+            f"৳{invoice.course.fee:,.2f}",
+            f"৳{invoice.amount:,.2f}"
+        ]
+    ]
+
+    # Create items table
+    items_table = Table(
+        items_data,
+        colWidths=[10*mm, 80*mm, 25*mm, 27*mm, 28*mm]
+    )
+
+    items_table.setStyle(TableStyle([
+        # Header styling
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#9D4EDD')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 12),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('TOPPADDING', (0, 0), (-1, 0), 10),
+
+        # Body styling
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 11),
-        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#E0E0E0')),
+        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('ALIGN', (0, 1), (0, -1), 'CENTER'),
+        ('ALIGN', (2, 1), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 1), (-1, -1), 'TOP'),
+        ('TOPPADDING', (0, 1), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+
+        # Grid
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#DDDDDD')),
+        ('LINEBELOW', (0, 0), (-1, 0), 2, colors.HexColor('#9D4EDD')),
+
+        # Alternating row colors
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#FAFAFA')),
+    ]))
+
+    elements.append(items_table)
+    elements.append(Spacer(1, 5*mm))
+
+    # ==================== TOTALS SECTION ====================
+
+    # Calculate totals (you can add subtotal, tax if needed)
+    subtotal = float(invoice.amount)
+    tax = 0  # No tax for now
+    total = subtotal + tax
+
+    totals_data = [
+        ['', '', 'Subtotal:', f"৳{subtotal:,.2f}"],
+        ['', '', 'Tax (0%):', f"৳{tax:,.2f}"],
+        ['', '', 'TOTAL:', f"৳{total:,.2f}"],
+    ]
+
+    totals_table = Table(
+        totals_data,
+        colWidths=[80*mm, 25*mm, 35*mm, 30*mm]
+    )
+
+    totals_table.setStyle(TableStyle([
+        ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
+        ('ALIGN', (3, 0), (3, -1), 'RIGHT'),
+        ('FONTNAME', (2, 0), (3, 1), 'Helvetica'),
+        ('FONTNAME', (2, 2), (3, 2), 'Helvetica-Bold'),
+        ('FONTSIZE', (2, 0), (3, 1), 10),
+        ('FONTSIZE', (2, 2), (3, 2), 12),
+        ('TEXTCOLOR', (2, 2), (3, 2), colors.HexColor('#9D4EDD')),
+        ('LINEABOVE', (2, 2), (3, 2), 2, colors.HexColor('#9D4EDD')),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+    ]))
+
+    elements.append(totals_table)
+    elements.append(Spacer(1, 8*mm))
+
+    # ==================== STUDENT ACCOUNT SUMMARY ====================
+
+    # Calculate student's total fees, paid, and due
+    from django.db.models import Sum
+
+    total_fees = invoice.student.enrollments.aggregate(
+        total=Sum('course__fee')
+    )['total'] or 0
+    total_paid = invoice.student.invoices.aggregate(
+        total=Sum('amount')
+    )['total'] or 0
+    due_amount = max(0, float(total_fees) - float(total_paid))
+
+    account_section = Paragraph("<b>STUDENT ACCOUNT SUMMARY</b>", section_style)
+    elements.append(account_section)
+
+    account_data = [
+        ['Total Course Fees', 'Total Paid', 'Balance Due'],
+        [f"৳{float(total_fees):,.2f}", f"৳{float(total_paid):,.2f}", f"৳{due_amount:,.2f}"]
+    ]
+
+    account_table = Table(account_data, colWidths=[56*mm, 56*mm, 56*mm])
+    account_table.setStyle(TableStyle([
+        # Header
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F5F5F5')),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor('#666666')),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+
+        # Values
+        ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 1), (-1, 1), 12),
+        ('TEXTCOLOR', (0, 1), (0, 1), colors.HexColor('#9D4EDD')),  # Total fees - purple
+        ('TEXTCOLOR', (1, 1), (1, 1), colors.HexColor('#00CBA9')),  # Paid - green
+        ('TEXTCOLOR', (2, 1), (2, 1), colors.HexColor('#DC3545') if due_amount > 0 else colors.HexColor('#00CBA9')),  # Due - red/green
+        ('TOPPADDING', (0, 1), (-1, 1), 10),
+        ('BOTTOMPADDING', (0, 1), (-1, 1), 10),
+
+        # Border
+        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#E0E0E0')),
+        ('LINEBELOW', (0, 0), (-1, 0), 1, colors.HexColor('#E0E0E0')),
+    ]))
+
+    elements.append(account_table)
+    elements.append(Spacer(1, 8*mm))
+
+    # ==================== PAYMENT STATUS BOX ====================
+
+    status_style = ParagraphStyle(
+        'Status',
+        parent=styles['Normal'],
+        fontSize=14,
+        textColor=colors.white,
+        fontName='Helvetica-Bold',
+        alignment=TA_CENTER,
+    )
+
+    # Determine payment status based on due amount
+    if due_amount <= 0:
+        status_text = "FULLY PAID"
+        status_color = colors.HexColor('#00CBA9')  # Green
+    else:
+        status_text = f"BALANCE DUE: ৳{due_amount:,.2f}"
+        status_color = colors.HexColor('#FF6B35')  # Orange
+
+    status_data = [[Paragraph(f"<b>{status_text}</b>", status_style)]]
+
+    status_table = Table(status_data, colWidths=[170*mm])
+    status_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), status_color),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('TOPPADDING', (0, 0), (-1, -1), 10),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ('ROUNDEDCORNERS', [5, 5, 5, 5]),
     ]))
-    elements.append(course_table)
-    elements.append(Spacer(1, 0.3 * inch))
 
-    # Total section
-    total_data = [
-        ['Total Amount:', f"${invoice.amount}"],
-    ]
+    elements.append(status_table)
+    elements.append(Spacer(1, 10*mm))
 
-    total_table = Table(total_data, colWidths=[5 * inch, 1.5 * inch])
-    total_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 14),
-        ('ALIGN', (1, 0), (1, 0), 'CENTER'),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#333333')),
-        ('LINEABOVE', (0, 0), (-1, 0), 2, colors.HexColor('#FFB3D9')),
-        ('TOPPADDING', (0, 0), (-1, -1), 12),
-    ]))
-    elements.append(total_table)
-    elements.append(Spacer(1, 0.5 * inch))
+    # ==================== PAYMENT DETAILS ====================
 
-    # Footer
+    payment_section = Paragraph("<b>PAYMENT INFORMATION</b>", section_style)
+    elements.append(payment_section)
+
+    payment_info = """
+    <b>Payment Method:</b> Cash/Bank Transfer<br/>
+    <b>Account Name:</b> Student Management System<br/>
+    <b>Bank:</b> National Education Bank<br/>
+    <b>Account Number:</b> 1234-5678-9012-3456<br/>
+    """
+    elements.append(Paragraph(payment_info, small_style))
+    elements.append(Spacer(1, 8*mm))
+
+    # ==================== NOTES & TERMS ====================
+
+    notes_section = Paragraph("<b>NOTES & TERMS</b>", section_style)
+    elements.append(notes_section)
+
+    notes_content = """
+    1. This invoice is computer generated and does not require a signature.<br/>
+    2. Please keep this invoice for your records.<br/>
+    3. For any queries regarding this invoice, please contact our billing department.<br/>
+    4. Thank you for choosing our educational services!
+    """
+    elements.append(Paragraph(notes_content, small_style))
+    elements.append(Spacer(1, 10*mm))
+
+    # ==================== FOOTER ====================
+
+    elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor('#CCCCCC')))
+    elements.append(Spacer(1, 3*mm))
+
     footer_style = ParagraphStyle(
         'Footer',
         parent=styles['Normal'],
-        fontSize=9,
+        fontSize=8,
         textColor=colors.HexColor('#999999'),
         alignment=TA_CENTER,
     )
-    footer = Paragraph("Thank you for your payment!", footer_style)
-    elements.append(footer)
+
+    footer_text = f"""
+    Student Management System | www.sms.edu | billing@sms.edu<br/>
+    Generated on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}<br/>
+    This is an electronically generated document.
+    """
+    elements.append(Paragraph(footer_text, footer_style))
 
     # Build PDF
     doc.build(elements)
