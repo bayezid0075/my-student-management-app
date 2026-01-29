@@ -110,12 +110,22 @@ export const studentsAPI = {
   }),
 };
 
-// Invoices API
+// Student Invoices API
 export const invoicesAPI = {
-  getAll: (params?: any) => api.get('/invoices/', { params }),
-  getOne: (id: number) => api.get(`/invoices/${id}/`),
-  create: (data: any) => api.post('/invoices/', data),
-  download: (id: number) => api.get(`/invoices/${id}/download/`, { responseType: 'blob' }),
+  getAll: (params?: any) => api.get('/invoices/student/', { params }),
+  getOne: (id: number) => api.get(`/invoices/student/${id}/`),
+  create: (data: any) => api.post('/invoices/student/', data),
+  download: (id: number) => api.get(`/invoices/student/${id}/download/`, { responseType: 'blob' }),
+};
+
+// Custom Invoices API
+export const customInvoicesAPI = {
+  getAll: (params?: any) => api.get('/invoices/custom/', { params }),
+  getOne: (id: number) => api.get(`/invoices/custom/${id}/`),
+  create: (data: any) => api.post('/invoices/custom/', data),
+  update: (id: number, data: any) => api.put(`/invoices/custom/${id}/`, data),
+  delete: (id: number) => api.delete(`/invoices/custom/${id}/`),
+  download: (id: number) => api.get(`/invoices/custom/${id}/download/`, { responseType: 'blob' }),
 };
 
 // Certificates API
