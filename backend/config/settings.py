@@ -174,7 +174,13 @@ X_FRAME_OPTIONS = 'DENY'
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
 # Session settings
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
+# Secure cookies require HTTPS. When running without HTTPS (no domain/SSL yet),
+# set HTTPS_ENABLED=False in .env to allow cookies over HTTP.
+HTTPS_ENABLED = os.environ.get('HTTPS_ENABLED', 'False') == 'True'
+SESSION_COOKIE_SECURE = HTTPS_ENABLED
+CSRF_COOKIE_SECURE = HTTPS_ENABLED
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
+
+# Trust X-Forwarded-Proto header from Nginx reverse proxy
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

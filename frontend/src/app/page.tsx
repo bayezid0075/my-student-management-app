@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth';
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth";
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -11,11 +11,11 @@ export default function Home() {
   useEffect(() => {
     if (!loading) {
       if (!user) {
-        router.push('/auth/login');
-      } else if (user.role === 'ADMIN') {
-        router.push('/admin');
+        router.push("/auth/login");
+      } else if (user.role === "ADMIN") {
+        router.push("/admin");
       } else {
-        router.push('/student');
+        router.push("/student");
       }
     }
   }, [user, loading, router]);

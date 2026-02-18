@@ -1,0 +1,22 @@
+[Unit]
+Description=Student Management System - Django Backend (Gunicorn)
+After=network.target mysql.service
+Requires=mysql.service
+
+[Service]
+Type=notify
+User=app
+Group=app
+WorkingDirectory=/home/app/student-management/backend
+Environment="PATH=/home/app/.local/bin:/usr/local/bin:/usr/bin"
+EnvironmentFile=/home/app/student-management/backend/.env
+ExecStart=/home/app/.local/bin/pipenv run gunicorn config.wsgi:application -c gunicorn_config.py
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+KillMode=mixed
+StandardOutput=append:/home/app/student-management/logs/backend-stdout.log
+StandardError=append:/home/app/student-management/logs/backend-stderr.log
+
+[Install]
+WantedBy=multi-user.target
