@@ -136,4 +136,10 @@ export const certificatesAPI = {
   download: (id: number) => api.get(`/certificates/${id}/download/`, { responseType: 'blob' }),
 };
 
+// Public Certificate Verification API — no auth token needed
+export const publicAPI = {
+  verifyCertificate: (certificateId: string) =>
+    axios.get(`${API_URL}/certificates/verify/`, { params: { certificate_id: certificateId } }),
+};
+
 export default api;

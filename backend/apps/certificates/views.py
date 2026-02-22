@@ -1,12 +1,13 @@
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.views import APIView
 from django.http import FileResponse
 from django.conf import settings
 from apps.authentication.permissions import IsAdmin
 from .models import Certificate
-from .serializers import CertificateSerializer
+from .serializers import CertificateSerializer, CertificateVerifySerializer
 from .pdf_generator import generate_certificate_pdf
 import os
 
@@ -80,3 +81,36 @@ class CertificateViewSet(viewsets.ModelViewSet):
             as_attachment=True,
             filename=f'certificate_{certificate.certificate_id}.pdf'
         )
+
+
+class CertificateVerifyView(APIView):
+    """
+    Public endpoint — no authentication required.
+    GET /api/certificates/verify/?certificate_id=CERT-2026-0001
+
+    Returns certificate authenticity, course details, and student
+    course-related information for the given certificate number.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        certificate_id = request.query_params.get('certificate_id', '').strip().upper()
+
+        if not certificate_id:
+            return Response(
+                {'valid': False, 'error': 'Certificate ID is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            certificate = Certificate.objects.select_related(
+                'student', 'course', 'batch'
+            ).get(certificate_id=certificate_id)
+        except Certificate.DoesNotExist:
+            return Response(
+                {'valid': False, 'error': 'No certificate found with that ID. Please check and try again.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = CertificateVerifySerializer(certificate, context={'request': request})
+        return Response({'valid': True, 'certificate': serializer.data})
